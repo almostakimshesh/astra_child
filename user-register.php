@@ -27,21 +27,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST['submit'])) {
             // Create the user
             $user_id = wp_create_user($username, $password, $email);
             
+           // updated code for user approval ==================== start ===========================
             if (!is_wp_error($user_id)) {
-                
-                wp_update_user(array('ID' => $user_id, 'role' => 'subscriber'));
+                // Assign "pending" role
+                $user = new WP_User($user_id);
+                $user->set_role('pending');
 
-                // Check the user role and set redirection URL
-                $subscriber_login_page = home_url('/user-login');  
-                $default_login_page = home_url('/login');  
+                // Store approval status as user meta
+                update_user_meta($user_id, 'account_status', 'pending');
 
-                $redirect_url = (user_can($user_id, 'subscriber')) ? $subscriber_login_page : $default_login_page;
+                // Notify the admin via email
+                wp_mail(
+                    get_option('admin_email'),
+                    'New User Pending Approval',
+                    "A new user ($username) has registered and is awaiting approval."
+                );
 
-                wp_redirect($redirect_url);
+                // Redirect to "Waiting for Approval" page
+                wp_redirect(home_url('/waiting-for-approval'));
                 exit;
             } else {
                 $error = $user_id->get_error_message();
             }
+            // updated code for user approval ==================== end =============================
         }
     }
 }
